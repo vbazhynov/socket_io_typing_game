@@ -46,12 +46,18 @@ export default (io: Server) => {
       }
     });
 
+    socket.on('user_ready_cl', (username, roomId, status) => {
+      io.to(roomId).emit('user_ready', username, status);
+    });
+
     socket.on('join_room', roomId => {
-      socket.join(roomId);
       const rooms = io.of('/').adapter.rooms;
+      socket.join(roomId);
       const roomUsers = rooms.get(roomId) as Set<string>;
       const usersArray = [...roomUsers.keys()];
       roomsObj[roomId] = usersArray;
+      console.log(roomsObj);
+
       const mappedNames = usersArray.map(user => usersMap[user]);
       socket.broadcast.emit('update_rooms', roomsObj);
       io.to(roomId).emit('join_done', mappedNames);
