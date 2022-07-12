@@ -45,6 +45,7 @@ const createRoomModal = () => {
 };
 
 const onBackToRooms = () => {
+  const username = sessionStorage.getItem('username');
   const gamePageEl = document.querySelector('#game-page');
   gamePageEl.classList.add('display-none');
   const roomsPageEl = document.querySelector('#rooms-page');
@@ -52,7 +53,7 @@ const onBackToRooms = () => {
   const roomNameEl = document.querySelector('#room-name');
   const roomName = roomNameEl.innerText;
   console.log('room name ' + roomName);
-  socket.emit('leave_room', roomName);
+  socket.emit('leave_room', roomName, username);
 };
 
 const onReadyBtnClick = () => {
@@ -61,16 +62,30 @@ const onReadyBtnClick = () => {
     '.ready-status[data-username="' + username + '"]',
   );
   const userReadyStatus = userReadyStatusEl.dataset.ready === 'true';
-  console.log(userReadyStatus);
   const status = !userReadyStatus;
-  console.log(status);
   changeReadyStatus({
     username: username,
     ready: status,
   });
-  const roomEl = document.querySelector('#room-name');
-  const roomId = roomEl.innerText;
-  socket.emit('user_ready_cl', username, roomId, !userReadyStatus);
+  const readyBtn = document.querySelector('#ready-btn');
+  readyBtn.innerText = status ? 'NOT READY' : 'READY';
+  const roomId = document.querySelector('#room-name').innerText;
+  socket.emit('user_ready_cl', username, roomId, status);
+  const readyAllUsers = document.querySelectorAll('.ready-status');
+  if (readyAllUsers) {
+    for (let user of readyAllUsers) {
+      if (user.dataset.ready === 'false') {
+        console.log('here');
+        return;
+      }
+    }
+  } else {
+    return;
+  }
+  console.log('ready');
+  const roomNameEl = document.querySelector('#room-name');
+  const roomName = roomNameEl.innerText;
+  socket.emit('users_ready', roomName);
 };
 
 const readyBtn = document.querySelector('#ready-btn');
@@ -94,7 +109,7 @@ const onUserExistError = () => {
   });
 };
 
-const onJoinDone = userNames => {
+const onUsersCreate = (userNames, userReadyStatus) => {
   const currentUser = sessionStorage.getItem('username');
   const usersContainer = document.querySelector('#users-wrapper');
   usersContainer.innerHTML = '';
@@ -102,7 +117,7 @@ const onJoinDone = userNames => {
     const isCurrentUser = user === currentUser ? true : false;
     appendUserElement({
       username: user,
-      ready: false,
+      ready: userReadyStatus[user],
       isCurrentUser: isCurrentUser,
     });
   }
@@ -113,14 +128,12 @@ const onDeleteRoom = name => {
 };
 
 const onUpdateRooms = rooms => {
-  console.log(rooms);
   const onJoin = e => {
     const roomName = e.target.dataset.roomName;
     const usersQuantityEl = document.querySelector(
       `.connected-users[data-room-name="${roomName}"]`,
     );
     const numberOfUsers = usersQuantityEl.dataset.roomNumberOfUsers;
-    console.log(numberOfUsers);
     if (numberOfUsers === '5') {
       showMessageModal({
         message: 'Room Reach Users Limit',
@@ -150,8 +163,41 @@ const onUserReady = (userName, status) => {
   });
 };
 
+const onStartGameCounter = () => {
+  console.log('counter');
+  const timerEl = document.querySelector('#timer');
+  timerEl.classList.remove('display-none');
+  const readyBtn = document.querySelector('#ready-btn');
+  readyBtn.classList.add('display-none');
+  const quitBtn = document.querySelector('#quit-room-btn');
+  quitBtn.classList.add('display-none');
+};
+
+const onShowCounterBeforeGame = count => {
+  const timerEl = document.querySelector('#timer');
+  timerEl.innerText = count;
+};
+
+const onStartGame = () => {
+  const timerEl = document.querySelector('#timer');
+  timerEl.classList.add('display-none');
+  const gameTimerEl = document.querySelector('#game-timer');
+  gameTimerEl.classList.remove('display-none');
+  const textContainer = document.querySelector('#text-container');
+  textContainer.classList.remove('display-none');
+};
+
+const onShowGameCounter = count => {
+  const gameTimerEl = document.querySelector('#game-timer');
+  gameTimerEl.innerText = count;
+};
+
 socket.on('delete_room', onDeleteRoom);
-socket.on('join_done', onJoinDone);
+socket.on('create_users', onUsersCreate);
 socket.on('user_exist', onUserExistError);
 socket.on('update_rooms', onUpdateRooms);
 socket.on('user_ready', onUserReady);
+socket.on('launch_start_counter', onStartGameCounter);
+socket.on('show_counter_before_game', onShowCounterBeforeGame);
+socket.on('start_game', onStartGame);
+socket.on('show_game_counter', onShowGameCounter);
