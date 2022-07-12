@@ -1,6 +1,7 @@
 import { showInputModal, showMessageModal } from './views/modal.mjs';
 import { appendRoomElement, removeRoomElement } from './views/room.mjs';
 import { appendUserElement, changeReadyStatus } from './views/user.mjs';
+import { getData } from './helpers/apiHelper.mjs';
 
 const username = sessionStorage.getItem('username');
 
@@ -52,7 +53,6 @@ const onBackToRooms = () => {
   roomsPageEl.classList.remove('display-none');
   const roomNameEl = document.querySelector('#room-name');
   const roomName = roomNameEl.innerText;
-  console.log('room name ' + roomName);
   socket.emit('leave_room', roomName, username);
 };
 
@@ -75,14 +75,12 @@ const onReadyBtnClick = () => {
   if (readyAllUsers) {
     for (let user of readyAllUsers) {
       if (user.dataset.ready === 'false') {
-        console.log('here');
         return;
       }
     }
   } else {
     return;
   }
-  console.log('ready');
   const roomNameEl = document.querySelector('#room-name');
   const roomName = roomNameEl.innerText;
   socket.emit('users_ready', roomName);
@@ -164,7 +162,6 @@ const onUserReady = (userName, status) => {
 };
 
 const onStartGameCounter = () => {
-  console.log('counter');
   const timerEl = document.querySelector('#timer');
   timerEl.classList.remove('display-none');
   const readyBtn = document.querySelector('#ready-btn');
@@ -177,14 +174,33 @@ const onShowCounterBeforeGame = count => {
   const timerEl = document.querySelector('#timer');
   timerEl.innerText = count;
 };
+const onKeyDown = e => {
+  let index = 0;
+  const letterToCheck = document.querySelector(`#letter${index}`);
+  if (e.key === letterToCheck.innerText) {
+    letterToCheck.classList.add('checked');
+  }
+};
 
-const onStartGame = () => {
+const onStartGame = async textId => {
   const timerEl = document.querySelector('#timer');
   timerEl.classList.add('display-none');
   const gameTimerEl = document.querySelector('#game-timer');
   gameTimerEl.classList.remove('display-none');
   const textContainer = document.querySelector('#text-container');
   textContainer.classList.remove('display-none');
+  const text = await getData(`/game/texts/${textId}`);
+  const textArr = text.split('');
+  textContainer.innerHTML = '';
+  let letterCounter = 0;
+  for (let letter of textArr) {
+    const letterEl = document.createElement('span');
+    letterEl.innerText = letter;
+    letterEl.setAttribute('id', `letter${letterCounter}`);
+    letterCounter++;
+    textContainer.append(letterEl);
+  }
+  window.addEventListener('keydown', onKeyDown);
 };
 
 const onShowGameCounter = count => {

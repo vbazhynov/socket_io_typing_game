@@ -8,7 +8,9 @@
 #room-name {
   padding: 15px;
 }
-
+.checked {
+  background-color: chartreuse;
+}
 #game-container {
   width: 50vw;
   height: 50vh;
@@ -31,7 +33,7 @@
 }
 
 #timer {
-  font-size:xx-large;
+  font-size: xx-large;
   font-weight: bold;
 }
 
@@ -41,7 +43,7 @@
 
 #game-timer {
   position: absolute;
-  bottom: 15px
+  bottom: 15px;
 }
 
 .user-header {
@@ -51,7 +53,7 @@
 
 .user {
   margin: 25px;
-  width: 100%
+  width: 100%;
 }
 
 .username {
@@ -66,9 +68,9 @@
 
 .user-progress {
   height: 100%;
-  background-color:green;
+  background-color: green;
 }
 
 .finished {
-  background-color:greenyellow !important;
+  background-color: greenyellow !important;
 }

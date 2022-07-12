@@ -74,7 +74,8 @@ export default (io: Server) => {
 
         if (count === 0) {
           clearInterval(timerId);
-          io.to(roomId).emit('start_game');
+          const textId = Math.round(Math.random() * (7 - 1) + 1);
+          io.to(roomId).emit('start_game', textId);
           io.to(roomId).emit('show_game_counter', gameTimeCounter);
           const gameTimerId = setInterval(() => {
             gameTimeCounter--;
