@@ -1,6 +1,10 @@
 import { showInputModal, showMessageModal } from './views/modal.mjs';
 import { appendRoomElement, removeRoomElement } from './views/room.mjs';
-import { appendUserElement, changeReadyStatus } from './views/user.mjs';
+import {
+  appendUserElement,
+  changeReadyStatus,
+  setProgress,
+} from './views/user.mjs';
 import { getData } from './helpers/apiHelper.mjs';
 
 const username = sessionStorage.getItem('username');
@@ -42,6 +46,21 @@ const createRoomModal = () => {
     title: 'Enter Room Name',
     onChange,
     onSubmit,
+  });
+};
+
+const onJoinPermitted = roomName => {
+  const gamePageEl = document.querySelector('#game-page');
+  gamePageEl.classList.remove('display-none');
+  const roomsPageEl = document.querySelector('#rooms-page');
+  roomsPageEl.classList.add('display-none');
+  const roomNameEl = document.querySelector('#room-name');
+  roomNameEl.innerHTML = roomName;
+};
+
+const onRoomIsFull = () => {
+  showMessageModal({
+    message: 'Room Reach Users Limit',
   });
 };
 
@@ -128,22 +147,7 @@ const onDeleteRoom = name => {
 const onUpdateRooms = rooms => {
   const onJoin = e => {
     const roomName = e.target.dataset.roomName;
-    const usersQuantityEl = document.querySelector(
-      `.connected-users[data-room-name="${roomName}"]`,
-    );
-    const numberOfUsers = usersQuantityEl.dataset.roomNumberOfUsers;
-    if (numberOfUsers === '5') {
-      showMessageModal({
-        message: 'Room Reach Users Limit',
-      });
-      return;
-    }
-    const gamePageEl = document.querySelector('#game-page');
-    gamePageEl.classList.remove('display-none');
-    const roomsPageEl = document.querySelector('#rooms-page');
-    roomsPageEl.classList.add('display-none');
-    const roomNameEl = document.querySelector('#room-name');
-    roomNameEl.innerHTML = roomName;
+    console.log('click');
     socket.emit('join_room', roomName);
   };
   const roomsContainer = document.querySelector('#rooms-wrapper');
@@ -174,11 +178,26 @@ const onShowCounterBeforeGame = count => {
   const timerEl = document.querySelector('#timer');
   timerEl.innerText = count;
 };
+
 const onKeyDown = e => {
-  let index = 0;
+  let index = sessionStorage.getItem('letter');
+  const textLength = sessionStorage.getItem('textLength');
   const letterToCheck = document.querySelector(`#letter${index}`);
+  letterToCheck.style.textDecoration = 'none';
   if (e.key === letterToCheck.innerText) {
     letterToCheck.classList.add('checked');
+    index++;
+    sessionStorage.setItem('letter', index);
+    const percents = Math.round((index / textLength) * 100);
+    setProgress({ username: username, progress: percents });
+    if (percents === 100) {
+      const timerEl = document.querySelector('#timer');
+      timerEl.classList.remove('display-none');
+      const gameTimerEl = document.querySelector('#game-timer');
+      gameTimerEl.classList.add('display-none');
+      const textContainer = document.querySelector('#text-container');
+      textContainer.classList.add('display-none');
+    }
   }
 };
 
@@ -201,6 +220,8 @@ const onStartGame = async textId => {
     textContainer.append(letterEl);
   }
   window.addEventListener('keydown', onKeyDown);
+  sessionStorage.setItem('letter', 0);
+  sessionStorage.setItem('textLength', textArr.length);
 };
 
 const onShowGameCounter = count => {
@@ -208,6 +229,8 @@ const onShowGameCounter = count => {
   gameTimerEl.innerText = count;
 };
 
+socket.on('join_permitted', onJoinPermitted);
+socket.on('room_is_full', onRoomIsFull);
 socket.on('delete_room', onDeleteRoom);
 socket.on('create_users', onUsersCreate);
 socket.on('user_exist', onUserExistError);
