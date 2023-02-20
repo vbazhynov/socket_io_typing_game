@@ -1,4 +1,9 @@
-import { showInputModal, showMessageModal } from './views/modal.mjs';
+import { inputSocketEvents, outputSocketEvents } from './enums/socketEvents.js';
+import {
+  showInputModal,
+  showMessageModal,
+  showResultsModal,
+} from './views/modal.mjs';
 import { appendRoomElement, removeRoomElement } from './views/room.mjs';
 import {
   appendUserElement,
@@ -19,6 +24,7 @@ const createRoomModal = () => {
   const onChange = roomName => {
     sessionStorage.setItem('room', roomName);
   };
+
   const onSubmit = () => {
     const roomName = sessionStorage.getItem('room');
     const roomNamesEl = document.querySelectorAll('.room');
@@ -34,7 +40,7 @@ const createRoomModal = () => {
     roomsPageEl.classList.add('display-none');
     const roomNameEl = document.querySelector('#room-name');
     roomNameEl.innerHTML = roomName;
-    socket.emit('join_room', roomName, username);
+    socket.emit(outputSocketEvents.JoinRoom, roomName, username);
     appendUserElement({
       username: sessionStorage.getItem('username'),
       ready: false,
@@ -72,7 +78,7 @@ const onBackToRooms = () => {
   roomsPageEl.classList.remove('display-none');
   const roomNameEl = document.querySelector('#room-name');
   const roomName = roomNameEl.innerText;
-  socket.emit('leave_room', roomName, username);
+  socket.emit(outputSocketEvents.LeaveRoom, roomName, username);
 };
 
 const onReadyBtnClick = () => {
@@ -89,7 +95,7 @@ const onReadyBtnClick = () => {
   const readyBtn = document.querySelector('#ready-btn');
   readyBtn.innerText = status ? 'NOT READY' : 'READY';
   const roomId = document.querySelector('#room-name').innerText;
-  socket.emit('user_ready_cl', username, roomId, status);
+  socket.emit(outputSocketEvents.UserReadyCl, username, roomId, status);
   const readyAllUsers = document.querySelectorAll('.ready-status');
   if (readyAllUsers) {
     for (let user of readyAllUsers) {
@@ -102,7 +108,7 @@ const onReadyBtnClick = () => {
   }
   const roomNameEl = document.querySelector('#room-name');
   const roomName = roomNameEl.innerText;
-  socket.emit('users_ready', roomName);
+  socket.emit(outputSocketEvents.UsersReady, roomName);
 };
 
 const readyBtn = document.querySelector('#ready-btn');
@@ -147,14 +153,16 @@ const onDeleteRoom = name => {
 const onUpdateRooms = rooms => {
   const onJoin = e => {
     const roomName = e.target.dataset.roomName;
-    console.log('click');
-    socket.emit('join_room', roomName);
+    socket.emit(outputSocketEvents.JoinRoom, roomName);
   };
   const roomsContainer = document.querySelector('#rooms-wrapper');
   roomsContainer.innerHTML = '';
   for (let key in rooms) {
-    const usersNumber = rooms[key].length;
-    appendRoomElement({ name: key, numberOfUsers: usersNumber, onJoin });
+    console.log(rooms[key].hide);
+    if (!rooms[key].hide) {
+      const usersNumber = rooms[key].users.length;
+      appendRoomElement({ name: key, numberOfUsers: usersNumber, onJoin });
+    }
   }
 };
 
@@ -189,14 +197,10 @@ const onKeyDown = e => {
     index++;
     sessionStorage.setItem('letter', index);
     const percents = Math.round((index / textLength) * 100);
-    setProgress({ username: username, progress: percents });
+    const roomId = document.querySelector('#room-name').innerText;
+    socket.emit(outputSocketEvents.UserProgress, username, roomId, percents);
     if (percents === 100) {
-      const timerEl = document.querySelector('#timer');
-      timerEl.classList.remove('display-none');
-      const gameTimerEl = document.querySelector('#game-timer');
-      gameTimerEl.classList.add('display-none');
-      const textContainer = document.querySelector('#text-container');
-      textContainer.classList.add('display-none');
+      socket.emit(outputSocketEvents.GameEnd, roomId);
     }
   }
 };
@@ -229,14 +233,52 @@ const onShowGameCounter = count => {
   gameTimerEl.innerText = count;
 };
 
-socket.on('join_permitted', onJoinPermitted);
-socket.on('room_is_full', onRoomIsFull);
-socket.on('delete_room', onDeleteRoom);
-socket.on('create_users', onUsersCreate);
-socket.on('user_exist', onUserExistError);
-socket.on('update_rooms', onUpdateRooms);
-socket.on('user_ready', onUserReady);
-socket.on('launch_start_counter', onStartGameCounter);
-socket.on('show_counter_before_game', onShowCounterBeforeGame);
-socket.on('start_game', onStartGame);
-socket.on('show_game_counter', onShowGameCounter);
+const onUpdateProgressBar = (username, progress) => {
+  setProgress({ username, progress });
+};
+
+const onFinishGame = users => {
+  const onClose = () => {
+    const readyBtn = document.querySelector('#ready-btn');
+    readyBtn.innerText = 'READY';
+    readyBtn.classList.remove('display-none');
+    const quitBtn = document.querySelector('#quit-room-btn');
+    quitBtn.classList.remove('display-none');
+  };
+  console.log(users);
+  for (const user of users) {
+    changeReadyStatus({
+      username: user,
+      ready: false,
+    });
+  }
+  window.removeEventListener('keydown', onKeyDown);
+  const gameTimerEl = document.querySelector('#game-timer');
+  gameTimerEl.classList.add('display-none');
+  const textContainer = document.querySelector('#text-container');
+  textContainer.classList.add('display-none');
+  const usersEl = document.querySelectorAll('.user');
+  let usersSortedArray = [];
+  for (const el of usersEl) {
+    const user = { name: el.querySelector('.username').dataset.username };
+    user.progress = Number(
+      el.querySelector('.user-progress').style.width.slice(0, -1),
+    );
+    usersSortedArray.push(user);
+  }
+  usersSortedArray.sort((a, b) => (a.progress < b.progress ? 1 : -1));
+  showResultsModal({ usersSortedArray, onClose });
+};
+
+socket.on(inputSocketEvents.JoinPermitted, onJoinPermitted);
+socket.on(inputSocketEvents.DeleteRoom, onDeleteRoom);
+socket.on(inputSocketEvents.CreateUsers, onUsersCreate);
+socket.on(inputSocketEvents.UserExist, onUserExistError);
+socket.on(inputSocketEvents.UpdateRooms, onUpdateRooms);
+socket.on(inputSocketEvents.UserReady, onUserReady);
+socket.on(inputSocketEvents.LaunchStartCounter, onStartGameCounter);
+socket.on(inputSocketEvents.ShowCounterBeforeGame, onShowCounterBeforeGame);
+socket.on(inputSocketEvents.StartGAme, onStartGame);
+socket.on(inputSocketEvents.ShowGameCounter, onShowGameCounter);
+socket.on(inputSocketEvents.UpdateProgressBar, onUpdateProgressBar);
+socket.on(inputSocketEvents.FinishGame, onFinishGame);

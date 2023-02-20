@@ -40,8 +40,8 @@ const showResultsModal = ({ usersSortedArray, onClose = () => {} }) => {
     return createElement({
       tagName: 'div',
       className: 'user-result',
-      attributes: { 'data-username': username, 'data-place': place },
-      innerElements: [`${place}) ${username}`],
+      attributes: { 'data-username': username.name, 'data-place': place },
+      innerElements: [`${place}) ${username.name}`],
     });
   });
 
